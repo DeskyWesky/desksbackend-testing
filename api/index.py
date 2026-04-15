@@ -122,7 +122,7 @@ def check_attestation_cache(oculus_id, device_fingerprint):
                 return True
             else:
                 send_discord_webhook(
-                    "smth wrong with path thing",
+                    "User Has A Wrong PathId Or Smth",
                     "",
                     16776960,
                     [
@@ -475,8 +475,8 @@ def main():
                 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
             </head>
             <body style="font-family: 'Inter', sans-serif;">
-                <h1 style="color: red; font-size: 30px;">
-                    i love 6yari
+                <h1 style="color: blue; font-size: 30px;">
+                    i love desk (discord.gg/luckytag)
                 </h1>
             </body>
         </html>
