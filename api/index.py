@@ -761,7 +761,7 @@ def photon_auth():
     
     if not user_id or len(user_id) < 15 or len(user_id) > 17:
         send_discord_webhook(
-            "photon auth failed......",
+            "❌ Photon Auth Failed",
             "",
             16711680,
             [
@@ -901,8 +901,8 @@ def titledata():
         "GorillanalyticsChance": 4320,
         "LatestPrivacyPolicyVersion": "2024.09.20",
         "LatestTOSVersion": "2024.09.20",
-        "CreditsData": [{"Title": "DEV TEAM", "Entries": [" Bigboi da goona \n whatdoido/whatdoigoon \n L1rson \n also uh i goon and whatdoido takes it in the butt \n desk is stinky lallaalalla \n g4 is papa "]}],
-        "MOTD": "<color=white>WELCOME TO LUCKY TAG!</color>\n<color=blue>Discord: discord.gg/luckytag.</color>\n<color=blue>Comp: discord.gg/UtYGAAevz</color>\n<color=yellow>Creator: Desk / Desky.</color>\n<color=red>Founders: Desk, L1rson, Bigboi, G4, z7.</color>\n<color=green>Developers: Desk, Bigboi, L4cks.</color>\n<color=orange>Update: Norwuz 24.</color>\n<color=purple>Boost The Discord 1x For Every Cosmetic. (NO STAFF)</color>",
+        "CreditsData": [{"Title": "DEV TEAM", "Entries": ["<color=red>DESK</color>\n<color=red>WHATDOIDO</color><color=red>L1RSON</color>\n"]}],
+        "MOTD": "<color=white>WELCOME TO LUCKY TAG!</color>\n<color=cyan>JOIN OUR DISCORD AT DISCORD.GG/LUCKYTAG TO SUPPORT OUR GAME!</color>\n\n<color=yellow>GAME CREATOR: DESK</color>\n<color=orange>OUR CURRENT GAME UPDATE IS WINTER 2024</color>\n\n<color=purple>JOIN OUR DISCORD AND BOOST IT 1X FOR EVERYCOSMETIC (NO STAFF)</color>",
         "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/luckytag</color>",
         "TOS_2024.09.20": "discord.gg/luckytag",
         "TOBAlreadyOwnCompTxt": "discord.gg/luckytag",
