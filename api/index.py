@@ -8,7 +8,7 @@ import hmac
 import base64
 from datetime import datetime, timedelta
 
-APP_CREDENTIALS = "OC|9787130994744207|5083f8188aa16f803fe92cac5fce538d"
+APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
 AppLabCredentials = {
     "LuckyTag": {
@@ -21,11 +21,11 @@ AppLabCredentials = {
 
 class GameInfo:
     def __init__(self):
-        self.TitleId = "71FE9"
-        self.SecretKey = "GX5691DCF34CA3GXBXM69O689CCZAOZ8XPY54DPDDTN5WN94P7"
+        self.TitleId = "1DA2C"
+        self.SecretKey = "HNH1XX146IRFMI47W5X8N85CO7EYGU5KA5Y7ATW4619COCFDE1"
         self.ApiKey = APP_CREDENTIALS
         self.AppCreds = APP_CREDENTIALS
-        self.DiscordWebhookUrl = "https://discord.com/api/webhooks/1448385860624974019/keJum0r2bIW4hOvhp3o5egEel8QSEvSZ6ougjGBP5F1RdOF_ssnbFkQZ6NfNChyceakZ"
+        self.DiscordWebhookUrl = "https://discord.com/api/webhooks/1479945982799122473/oDmpbmu7geSI83cLDJYPWJU_DwfQmdeHw8nAO3RzXrhNt0rv17nxBcJ0aPx9zpW49ZMf"
         self.ApiKeys = [APP_CREDENTIALS]
         self.AttestationSecret = "7a810d237c38f6d6e940028aa967a2cad797467beb52219480d2125187a55cbb"
 
@@ -608,12 +608,12 @@ def playfab_authentication():
         
         embed = {
             "embeds": [{
-                "title": "✅ authed boiiiiii i am a gooner if u didnt know - 67yari",
+                "title": "✅ UserAuthed Correctly",
                 "description": f"```ini\n[PlayFab ID]: {playfab_id}\n[IP]: {ip_address}\n[Age]: {rjson.get('AgeCategory', 'N/A')}\n[Username]: {graph_user.get('alias', 'N/A')}\n[Attestation]: {attestation_status}```",
                 "color": 3447003
             }]
         }
-        requests.post("https://discord.com/api/webhooks/1447365706508144743/nD1S4OiU7CNbcb_O5zFVgUXTs3zA7ANREe8eEnZ8tu5ywHgrKrf9jC5ITjZFnnjm3aQY", json=embed)
+        requests.post("https://discord.com/api/webhooks/1491913655300919326/EpR4YUjIo1lU3c-zpY5Yd8wWw-Dt4f4JtyNKC0WZipN2v0HjZbfNqDjRpJtOM03VOdsU", json=embed)
         
         requests.post(
             url=f"https://{settings.TitleId}.playfabapi.com/Server/LinkServerCustomID",
