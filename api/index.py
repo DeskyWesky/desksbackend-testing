@@ -482,7 +482,7 @@ def main():
         </html>
     """
 
-@app.route("/api/RequestChallenge", methods=["POST"])
+@app.route("RequestChallenge", methods=["POST"])
 def request_challenge():
     cleanup_challenges()
     
