@@ -482,7 +482,7 @@ def main():
         </html>
     """
 
-@app.route("RequestChallenge", methods=["POST"])
+@app.route("/RequestChallenge", methods=["POST"])
 def request_challenge():
     cleanup_challenges()
     
@@ -912,8 +912,6 @@ def titledata():
         "UseLegacyIAP": False
     }
     return jsonify(response_data)
-
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9080)
