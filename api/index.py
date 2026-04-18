@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
 AppLabCredentials = {
-    "LuckyTag": {
+    "Og Gtag": {
         "Credential": APP_CREDENTIALS
     },
     "GameNameHere2": {
@@ -27,7 +27,6 @@ class GameInfo:
         self.AppCreds = APP_CREDENTIALS
         self.DiscordWebhookUrl = "https://discord.com/api/webhooks/1479945982799122473/oDmpbmu7geSI83cLDJYPWJU_DwfQmdeHw8nAO3RzXrhNt0rv17nxBcJ0aPx9zpW49ZMf"
         self.ApiKeys = [APP_CREDENTIALS]
-        self.AttestationSecret = "7a810d237c38f6d6e940028aa967a2cad797467beb52219480d2125187a55cbb"
 
     def get_auth_headers(self):
         return {"content-type": "application/json", "X-SecretKey": self.SecretKey}
@@ -41,21 +40,19 @@ class ApplabInfo:
 
 settings = GameInfo()
 
-LuckyTag = ApplabInfo()
-LuckyTag.Credential = AppLabCredentials["LuckyTag"]["Credential"]
+Og Gtag = ApplabInfo()
+Og Gtag.Credential = AppLabCredentials["Og Gtag"]["Credential"]
 
 GameNamehere2 = ApplabInfo()
 GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
 
-AllApplabs = [LuckyTag, GameNamehere2]
+AllApplabs = [Og Gtag, GameNamehere2]
 
 app = Flask(__name__)
 
 used_nonces = {}
 used_orgscopes = {}
 active_rooms = {}
-challenge_store = {}
-attestation_cache = {}
 
 SUSPICIOUS_PATTERNS = [
     "discord.gg/spm", "discord.gg/", "discord.com/", "dsc.gg/",
@@ -64,101 +61,12 @@ SUSPICIOUS_PATTERNS = [
 
 EXPECTED_USER_AGENT = "UnityPlayer/2022.3.2f1 (UnityWebRequest/1.0, libcurl/7.84.0-DEV)"
 EXPECTED_UNITY_VERSION = "2022.3.2f1"
-CHALLENGE_EXPIRY = 300
-ATTESTATION_EXPIRY = 3600
 
 def get_client_ip():
     ip = request.headers.get('X-Real-Ip') or request.headers.get('X-Forwarded-For') or request.remote_addr
     if ',' in ip:
         ip = ip.split(',')[0].strip()
     return ip
-
-def generate_challenge():
-    timestamp = str(int(time.time()))
-    random_data = str(random.randint(100000, 999999))
-    challenge = base64.b64encode(f"{timestamp}:{random_data}".encode()).decode()
-    return challenge
-
-def verify_attestation(oculus_id, challenge, attestation_proof, device_fingerprint):
-    if not all([oculus_id, challenge, attestation_proof, device_fingerprint]):
-        return False, "Missing attestation parameters"
-    
-    if oculus_id not in challenge_store:
-        return False, "No challenge found for user"
-    
-    stored_challenge, challenge_time = challenge_store[oculus_id]
-    
-    if time.time() - challenge_time > CHALLENGE_EXPIRY:
-        del challenge_store[oculus_id]
-        return False, "Challenge expired"
-    
-    if stored_challenge != challenge:
-        return False, "Challenge mismatch"
-    
-    expected_proof = hmac.new(
-        settings.AttestationSecret.encode(),
-        f"{oculus_id}:{challenge}:{device_fingerprint}".encode(),
-        hashlib.sha256
-    ).hexdigest()
-    
-    if not hmac.compare_digest(attestation_proof, expected_proof):
-        return False, "Invalid attestation proof"
-    
-    del challenge_store[oculus_id]
-    
-    attestation_cache[oculus_id] = {
-        'device_fingerprint': device_fingerprint,
-        'timestamp': time.time(),
-        'ip': get_client_ip()
-    }
-    
-    return True, "Attestation verified"
-
-def check_attestation_cache(oculus_id, device_fingerprint):
-    if oculus_id in attestation_cache:
-        cached = attestation_cache[oculus_id]
-        if time.time() - cached['timestamp'] < ATTESTATION_EXPIRY:
-            if cached['device_fingerprint'] == device_fingerprint:
-                return True
-            else:
-                send_discord_webhook(
-                    "User Has A Wrong PathId Or Smth",
-                    "",
-                    16776960,
-                    [
-                        {"name": "Oculus ID", "value": oculus_id, "inline": True},
-                        {"name": "Cached Fingerprint", "value": cached['device_fingerprint'][:32], "inline": True},
-                        {"name": "Current Fingerprint", "value": device_fingerprint[:32], "inline": True},
-                        {"name": "IP", "value": get_client_ip(), "inline": True}
-                    ]
-                )
-                del attestation_cache[oculus_id]
-                return False
-    return False
-
-def cleanup_challenges():
-    current_time = time.time()
-    expired = [uid for uid, (_, timestamp) in challenge_store.items() if current_time - timestamp > CHALLENGE_EXPIRY]
-    for uid in expired:
-        del challenge_store[uid]
-
-def cleanup_attestations():
-    current_time = time.time()
-    expired = [uid for uid, data in attestation_cache.items() if current_time - data['timestamp'] > ATTESTATION_EXPIRY]
-    for uid in expired:
-        del attestation_cache[uid]
-
-def generate_device_fingerprint_server(headers, platform_data):
-    components = [
-        headers.get('User-Agent', ''),
-        platform_data.get('DeviceModel', ''),
-        platform_data.get('CPUType', ''),
-        platform_data.get('GPUModel', ''),
-        platform_data.get('SystemMemory', ''),
-        platform_data.get('ScreenResolution', '')
-    ]
-    fingerprint_string = ":".join(components)
-    return hashlib.sha256(fingerprint_string.encode()).hexdigest()
 
 def check_vpn(ip_address):
     try:
@@ -482,32 +390,6 @@ def main():
         </html>
     """
 
-@app.route("/RequestChallenge", methods=["POST"])
-def request_challenge():
-    cleanup_challenges()
-    
-    rjson = request.get_json()
-    oculus_id = rjson.get("OculusId")
-    
-    if not oculus_id:
-        return jsonify({"Error": "Missing OculusId"}), 400
-    
-    challenge = generate_challenge()
-    challenge_store[oculus_id] = (challenge, time.time())
-    
-    send_discord_webhook(
-        "um what the fuck",
-        "",
-        3447003,
-        [
-            {"name": "Oculus ID", "value": oculus_id, "inline": True},
-            {"name": "Challenge", "value": challenge[:32] + "...", "inline": True},
-            {"name": "IP", "value": get_client_ip(), "inline": True}
-        ]
-    )
-    
-    return jsonify({"Challenge": challenge}), 200
-
 @app.route("/api/PlayFabAuthentication", methods=["POST"])
 def playfab_authentication():
     ip_address = get_client_ip()
@@ -522,44 +404,6 @@ def playfab_authentication():
     platform = rjson.get("Platform")
     app_ver = rjson.get("AppVersion", "")
     custom_id = rjson.get("CustomId")
-    
-    challenge = rjson.get("Challenge")
-    attestation_proof = rjson.get("AttestationProof")
-    device_fingerprint = rjson.get("DeviceFingerprint")
-    
-    if challenge and attestation_proof and device_fingerprint:
-        is_valid, message = verify_attestation(oculus_id, challenge, attestation_proof, device_fingerprint)
-        if not is_valid:
-            send_discord_webhook(
-                "Attestation Failed (LMAO)",
-                "",
-                16711680,
-                [
-                    {"name": "Oculus ID", "value": oculus_id, "inline": True},
-                    {"name": "Reason", "value": message, "inline": False},
-                    {"name": "IP", "value": ip_address, "inline": True}
-                ]
-            )
-            return jsonify({"Message": "Attestation verification failed", "Error": "BadRequest-InvalidAttestation"}), 403
-        
-        send_discord_webhook(
-            "Attestation Verified",
-            "",
-            65280,
-            [
-                {"name": "Oculus ID", "value": oculus_id, "inline": True},
-                {"name": "Device Fingerprint", "value": device_fingerprint[:32], "inline": True},
-                {"name": "IP", "value": ip_address, "inline": True}
-            ]
-        )
-    else:
-        if device_fingerprint:
-            if not check_attestation_cache(oculus_id, device_fingerprint):
-                return jsonify({
-                    "Message": "Attestation required. Please request challenge first.",
-                    "Error": "BadRequest-AttestationRequired",
-                    "RequireChallenge": True
-                }), 403
     
     if check_suspicious_nonce(nonce, oculus_id, ip_address):
         return jsonify({"Message": "Invalid nonce format detected", "Error": "BadRequest-InvalidNonce"}), 400
@@ -604,12 +448,10 @@ def playfab_authentication():
         
         playfab_id = login_req.json().get("data").get("PlayFabId")
         
-        attestation_status = "Verified" if oculus_id in attestation_cache else "Skipped"
-        
         embed = {
             "embeds": [{
                 "title": "✅ UserAuthed Correctly",
-                "description": f"```ini\n[PlayFab ID]: {playfab_id}\n[IP]: {ip_address}\n[Age]: {rjson.get('AgeCategory', 'N/A')}\n[Username]: {graph_user.get('alias', 'N/A')}\n[Attestation]: {attestation_status}```",
+                "description": f"```ini\n[PlayFab ID]: {playfab_id}\n[IP]: {ip_address}\n[Age]: {rjson.get('AgeCategory', 'N/A')}\n[Username]: {graph_user.get('alias', 'N/A')}```",
                 "color": 3447003
             }]
         }
@@ -903,7 +745,7 @@ def titledata():
         "LatestTOSVersion": "2024.09.20",
         "CreditsData": [{"Title": "DEV TEAM", "Entries": ["<color=red>DESK</color>\n<color=red>WHATDOIDO</color><color=red>L1RSON</color>\n"]}],
         "MOTD": "<color=white>WELCOME TO LUCKY TAG!</color>\n<color=cyan>JOIN OUR DISCORD AT DISCORD.GG/LUCKYTAG TO SUPPORT OUR GAME!</color>\n\n<color=yellow>GAME CREATOR: DESK</color>\n<color=orange>OUR CURRENT GAME UPDATE IS WINTER 2024</color>\n\n<color=purple>JOIN OUR DISCORD AND BOOST IT 1X FOR EVERYCOSMETIC (NO STAFF)</color>",
-        "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/luckytag</color>",
+        "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/LUCKYTAG</color>",
         "TOS_2024.09.20": "discord.gg/luckytag",
         "TOBAlreadyOwnCompTxt": "discord.gg/luckytag",
         "TOBAlreadyOwnPurchaseBundle": "discord.gg/luckytag",
@@ -912,6 +754,7 @@ def titledata():
         "UseLegacyIAP": False
     }
     return jsonify(response_data)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=9080)
