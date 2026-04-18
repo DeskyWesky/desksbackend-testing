@@ -46,7 +46,7 @@ LuckyTag.Credential = AppLabCredentials["LuckyTag"]["Credential"]
 GameNamehere2 = ApplabInfo()
 GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
 
-AllApplabs = [LuckyTag, GameNamehere2]
+AllApplabs = [Og Gtag, GameNamehere2]
 
 app = Flask(__name__)
 
