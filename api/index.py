@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
 AppLabCredentials = {
-    "OgGtag": {
+    "LuckyTag": {
         "Credential": APP_CREDENTIALS
     },
     "GameNameHere2": {
@@ -40,13 +40,13 @@ class ApplabInfo:
 
 settings = GameInfo()
 
-OgGtag = ApplabInfo()
-OgGtag.Credential = AppLabCredentials["OgGtag"]["Credential"]
+LuckyTag = ApplabInfo()
+LuckyTag.Credential = AppLabCredentials["LuckyTag"]["Credential"]
 
 GameNamehere2 = ApplabInfo()
 GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
 
-AllApplabs = [Og Gtag, GameNamehere2]
+AllApplabs = [LuckyTag, GameNamehere2]
 
 app = Flask(__name__)
 
