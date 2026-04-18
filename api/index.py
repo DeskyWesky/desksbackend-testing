@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
 AppLabCredentials = {
-    "OgGtag": {
+    "LuckyTag": {
         "Credential": APP_CREDENTIALS
     },
     "GameNameHere2": {
@@ -40,13 +40,13 @@ class ApplabInfo:
 
 settings = GameInfo()
 
-OgGtag = ApplabInfo()
-OgGtag.Credential = AppLabCredentials["OgGtag"]["Credential"]
+LuckyTag = ApplabInfo()
+LuckyTag.Credential = AppLabCredentials["LuckyTag"]["Credential"]
 
 GameNamehere2 = ApplabInfo()
 GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
 
-AllApplabs = [Og Gtag, GameNamehere2]
+AllApplabs = [LuckyTag, GameNamehere2]
 
 app = Flask(__name__)
 
@@ -745,7 +745,7 @@ def titledata():
         "LatestTOSVersion": "2024.09.20",
         "CreditsData": [{"Title": "DEV TEAM", "Entries": ["<color=red>DESK</color>\n<color=red>WHATDOIDO</color><color=red>L1RSON</color>\n"]}],
         "MOTD": "<color=white>WELCOME TO LUCKY TAG!</color>\n<color=cyan>JOIN OUR DISCORD AT DISCORD.GG/LUCKYTAG TO SUPPORT OUR GAME!</color>\n\n<color=yellow>GAME CREATOR: DESK</color>\n<color=orange>OUR CURRENT GAME UPDATE IS WINTER 2024</color>\n\n<color=purple>JOIN OUR DISCORD AND BOOST IT 1X FOR EVERYCOSMETIC (NO STAFF)</color>",
-        "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/LUCKYTAG</color>",
+        "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/luckytag</color>",
         "TOS_2024.09.20": "discord.gg/luckytag",
         "TOBAlreadyOwnCompTxt": "discord.gg/luckytag",
         "TOBAlreadyOwnPurchaseBundle": "discord.gg/luckytag",
