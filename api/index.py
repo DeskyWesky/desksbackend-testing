@@ -1,1186 +1,919 @@
 import requests
-from flask import Flask, request, jsonify, abort
-import json
-import base64
-import string
-import uuid
-import jwt
-from pymongo import MongoClient
 import random
+from flask import Flask, jsonify, request
+import json
+import time
+import hashlib
+import hmac
+import base64
+from datetime import datetime, timedelta
 
+APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
+AppLabCredentials = {
+    "LuckyTag": {
+        "Credential": APP_CREDENTIALS
+    },
+    "GameNameHere2": {
+        "Credential": "yourcred"
+    },
+}
 
-class PlayFabInfo():
-    def __init__(playfab):
-        playfab.TitleId : str = None
-        playfab.SecretKey : str = None
+class GameInfo:
+    def __init__(self):
+        self.TitleId = "1DA2C"
+        self.SecretKey = "HNH1XX146IRFMI47W5X8N85CO7EYGU5KA5Y7ATW4619COCFDE1"
+        self.ApiKey = APP_CREDENTIALS
+        self.AppCreds = APP_CREDENTIALS
+        self.DiscordWebhookUrl = "https://discord.com/api/webhooks/1479945982799122473/oDmpbmu7geSI83cLDJYPWJU_DwfQmdeHw8nAO3RzXrhNt0rv17nxBcJ0aPx9zpW49ZMf"
+        self.ApiKeys = [APP_CREDENTIALS]
+        self.AttestationSecret = "7a810d237c38f6d6e940028aa967a2cad797467beb52219480d2125187a55cbb"
 
-class AppInfo():
-    def __init__(app):
-        app.Credential : str = None
+    def get_auth_headers(self):
+        return {"content-type": "application/json", "X-SecretKey": self.SecretKey}
 
-PfInfo = PlayFabInfo()
-PfInfo.TitleId = "1DA2C"
-PfInfo.SecretKey = "HNH1XX146IRFMI47W5X8N85CO7EYGU5KA5Y7ATW4619COCFDE1"
+    def headers(self):
+        return {"Content-Type": "application/json", "X-SecretKey": self.SecretKey}
 
-Og Gtag = AppInfo()
-Og Gtag.Credential = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
+class ApplabInfo:
+    def __init__(self):
+        self.Credential = None
+
+settings = GameInfo()
+
+LuckyTag = ApplabInfo()
+LuckyTag.Credential = AppLabCredentials["LuckyTag"]["Credential"]
+
+GameNamehere2 = ApplabInfo()
+GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
+
+AllApplabs = [LuckyTag, GameNamehere2]
 
 app = Flask(__name__)
 
-Headers = {
-    "X-SecretKey": PfInfo.SecretKey,
-    "Content-Type": "application/json"
-}
+used_nonces = {}
+used_orgscopes = {}
+active_rooms = {}
+challenge_store = {}
+attestation_cache = {}
 
-DefaultHeaders = {
-    "Content-Type": "application/json"
-}
-
-TuffDb = MongoClient("mongodb+srv://micheal:cat@ogtag.bgipd8l.mongodb.net/")
-db = TuffDb["Db"]
-players = db["Players"]
-
-zz = MongoClient("mongodb+srv://micheal:cat@ogtag.bgipd8l.mongodb.net/")
-zzzczx = zz["Db"]
-Banned = zzzczx["BlockedHwids"]
-
-
-
-def BannedLogings(t: str, d: str):
-    requests.post(
-        url=f"https://discord.com/api/webhooks/1494839878758961252/46jyieoeCTFTdDAxNydHcUAA1uZgMrwutiz7dzq2HoDfOCcuhjsP8ZvUxI7vS4xR9YaM",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": t,
-                    "description": d,
-                    "color": 0x8B0000
-                }
-            ],
-            "attachments": []
-        }
-    )
-    return
-def AddToDb(Id: str, Token: str, UserId: str, Hwid: str):
-    p = players.find_one({
-        "UserId": UserId
-    })
-    if p:
-        return p["MothershipId"]
-    players.insert_one({
-        "MothershipId": Id,
-        "Token": Token,
-        "UserId": UserId,
-        "Hwid": Hwid
-    })
-    return Id
-def GenToken():
-    lenght = random.randint(22, 40)
-    digits = string.ascii_letters + string.digits
-    randmshit = ''.join(random.choice(digits) for _ in range(lenght))
-
-    return randmshit
-def b64Decode(Val: str):
-    b = base64.b64decode(Val)
-    r = b.decode(encoding="utf-8")
-    return r
-def CheckIfbanned(hwid: str):
-    e = Banned.find_one({
-        "Hwid": hwid
-    })
-    if e:
-        return True
-    else:
-        return False
-def CheckMothershipToken(Token: str):
-    r = players.find_one({
-        "Token": Token
-    })
-    if r:
-        return True
-    else:
-        return False
-
-def SuccessComplete(r: str, d: str, Id: str):
-    r = players.find_one({
-        "MothershipId": Id
-    })
-    if r:
-        return 
-    requests.post(
-        url="https://discord.com/api/webhooks/1494840084317601832/mZq90pCWaSZgZx7LtpKzo30AlMWnzKc81F-eIOJjv6yzzw5Qi5-2hDSqFnX3vjltd7QC",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": r,
-                    "color": 0x57f287,
-                    "description": d
-                }
-            ],
-            "attachments": []
-        }
-    )    
-    return
-def SuccessBegin(t: str, d: str):
-    requests.post(
-        url="https://discord.com/api/webhooks/1479945982799122473/oDmpbmu7geSI83cLDJYPWJU_DwfQmdeHw8nAO3RzXrhNt0rv17nxBcJ0aPx9zpW49ZMf",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": t,
-                    "description": d,
-                    "color": 0x57f287
-                }
-            ],
-            "attachments": []
-        }
-    )    
-    return
-
-def CheckMothershipId(Id: str):
-    r = players.find_one({
-        "MothershipId": Id
-    })
-    if r:
-        return True
-    else:
-        return False
-    
-def GenerateChallangeNonce():
-    lenght = random.randint(22, 172)
-    digits = string.ascii_letters + string.digits
-    randmshit = ''.join(random.choice(digits) for _ in range(lenght))
-    
-
-    encoded = base64.b64encode(randmshit.encode('utf-8')).decode('utf-8')
-    challangenonce = encoded.replace('+', '-').replace('/', '_')
-    return challangenonce
-
-def FailedMothership(t: str, d: str):
-    r = requests.post(
-        url="https://discord.com/api/webhooks/1494840291981525102/UJU0lUVFl-Iv7vxFZ72zrusLA6OCYLy0JO3aQPfwArGeUmi-T9vOd282cn6GMNxzKYH-",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": t,
-                    "description": d,
-                    "color": 0x8B0000
-                }
-            ],
-            "attachments": []
-        }
-    )
-    return
-def BanUser(PlayerId: str, Duration: str, Reason: str):
-    requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/BanUsers",
-        headers=Headers,
-        json={
-            "Bans": [
-                {
-                    "PlayFabId": PlayerId,
-                    "DurationInHours": Duration,
-                    "Reason": Reason
-                }
-            ]
-        }
-    )
-    print("Success")
-
-        
-def BadNonce(payload):
-        url = "https://discord.com/api/webhooks/1494840394729525358/0SCJC-pFoObn7GW9gdMlQ-cfHUE5V1lpsib0jEp0IoJcTSmDKU_L9IsX_Z-gCGnoztDB"
-        headers = {"Content-Type": "application/json"}
-        requests.post(url=url, json=payload, headers=headers)
-
-def SusSPM(payload):
-        url = "https://discord.com/api/webhooks/1426984555927306291/5D50a2uOS4RUHyhTaTP_NBMhoi8ddQSOIz8JPyktoDrCP2pDZcLOfmFLkEyh3LBV75NC"
-        headers = {"Content-Type": "application/json"}
-        requests.post(url=url, json=payload, headers=headers)
-
-def PassedSpm(payload):
-        url = "https://discord.com/api/webhooks/1437596145122807929/ezEjKGGq0Dljfv0w8PsKyOa5TVr417hw-aYTzN79OzO_aA-raUC8Vji6R_6ou4H8-DLX"
-        headers = {"Content-Type": "application/json"}
-        requests.post(url=url, json=payload, headers=headers)
-
-
-def banPlayer(userid, reason, hours):
-        url = "https://42638.playfabapi.com/Server/BanUsers"
-        headers = {
-            "X-SecretKey": "1FG8HPC81TSOK4CPFCI1ZONT4UQBPOQD8WQP69JUE98GNHASZO",
-            "content-type": "application/json"}
-        payload = {
-             "Bans": [
-                  {
-                       "PlayFabId": userid,
-                       "Reason": reason,
-                       "DurationInHours": hours
-                }
-             ]
-        }
-        requests.post(url=url, json=payload, headers=headers)
-
-def DeleteUser(PlayerId: str):
-    requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/BanUsers",
-        headers=Headers,
-        json={
-            "PlayFabId": PlayerId
-        }
-    )
-    print("Success")
-
-def GrantItem(PlayerId: str, ItemId: str):
-    requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/GrantItemsToUser",
-        headers=Headers,
-        json={
-            "PlayFabId": PlayerId,
-            "ItemIds": [
-                ItemId
-            ],
-            "CatalogVersion": "DLC"
-        }
-    )
-def GrantShinyRocks(PlayfabId: str, Ammount: str):
-    requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Admin/AddUserVirtualCurrency",
-        headers=Headers,
-        json={
-            "PlayFabId": PlayfabId,
-            "Amount": Ammount,
-            "VirtualCurrency": "SR"
-        }
-    )
-
-def CheckPlayFabId(PlayFabId: str):
-    r = requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Admin/GetUserAccountInfo",
-        headers=Headers,
-        json={
-            "PlayFabId": PlayFabId
-        }
-    )
-    
-    if r.status_code == 200:
-        rjson = r.json()
-        return rjson
-    else:
-        return False
-    
-def CheckSessionTicket(SessionTicket: str):
-    r = requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/AuthenticateSessionTicket",
-        headers=Headers,
-        json={
-            "SessionTicket": SessionTicket
-        }
-    )
-    if r.status_code == 200:
-        return True
-    else:
-        return False
-def CheckOrgscope(orgscope: str):
-    r = requests.get(
-        url=f"https://graph.oculus.com/{orgscope}?access_token={Og Gtag.Credential}&fields=org_scoped_id,alias"
-    )
-    if r.status_code == 200:
-        rjson = r.json()
-        return rjson
-    else:
-        return False
-
-def CheckNonce(nonce: str, userid: str):
-    r = requests.post(
-        url=f"https://graph.oculus.com/user_nonce_validate?nonce={nonce}&user_id={userid}&access_token={Og Gtag.Credential}",
-        headers=DefaultHeaders
-    )
-    rjson = r.json()
-    if rjson.get("is_valid") == True:
-        return True
-    else:
-        return False
-
-def PfAuthFailed(t: str, d: str):
-    r = requests.post(
-        url="https://discord.com/api/webhooks/1479943617312461033/o8MYAlYWG0lFcn-hfrY91VKimAV0xBpUBx_WK_82pRxanltcbfnvnbwgP3r-N0Mhrq1o",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": t,
-                    "description": d,
-                    "color": 0x8B0000
-                }
-            ],
-            "attachments": []
-        }
-    )
-    if r.status_code == 204:
-        return True
-    else:
-        return False
-    
-
-def VpnUserBan(t: str, d: str):
-    r = requests.post(
-        url="https://discord.com/api/webhooks/1494840909999640666/8vDKaDT6wcEMwNHA8SbSrNBN011U-OBJyXKtVOujMPkbycgTE59_lW0y_HBvMCF97ctu",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": t,
-                    "description": d,
-                    "color": 0x8B0000
-                }
-            ],
-            "attachments": []
-        }
-    )
-    if r.status_code == 204:
-        return True
-    else:
-        return False
-def AntiVpn(ip: str):
-    r = requests.get(
-        url=f"http://ip-api.com/json/{ip}?fields=16974336"
-    )
-    rjson = r.json()
-    if rjson.get("proxy") == True or rjson.get("hosting") == True:
-        return False
-    else:
-        return True
-
-def CheckAttestation(Token: str):
-    r = requests.get(
-        url=f"https://graph.oculus.com/platform_integrity/verify?token={Token}&access_token={Og Gtag.Credential}"
-    )
-    rjson = r.json().get("data", {})[0]
-    if rjson.get("message") == "success":
-        return rjson
-    else:
-        return False
-def PfAuthSuccess(Orgscope: str, OculusId: str, PlayFabId: str, EntityToken: str, SessionTicket: str, Platform: str):
-    requests.post(
-        url="https://discord.com/api/webhooks/1479943053950062803/6WZO7ft4wpRBCrD1rL-CP4VeA86pJvCttcXSToQLbuZEw-tLJDQZwY2NsbeiGVGlZqFK",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": "Success Auth",
-                    "color": 0x1f8b4c,
-                    "fields": [
-                        {
-                            "name": "OrgScopedID",
-                            "value": f"```{Orgscope}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "OculusId",
-                            "value": f"```{OculusId}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "PlayFabId",
-                            "value": f"```{PlayFabId}```",
-                            "inline": False
-                        },
-                        {
-                            "name": "EntityToken",
-                            "value": f"```{EntityToken}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "SessionTicket",
-                            "value": f"```{SessionTicket}```"
-                        },
-                        {
-                            "name": "Platform",
-                            "value": f"```{Platform}```"
-                        }
-                    ]
-                }
-            ]
-        }
-    )
-    return
-
-def PfAuthSuccessNewUpd(Orgscope: str, OculusId: str, PlayFabId: str, EntityToken: str, SessionTicket: str, Platform: str, MothershipId: str, MothershipToken: str, AccountCreationTime: str):
-    requests.post(
-        url="https://discord.com/api/webhooks/1479943053950062803/6WZO7ft4wpRBCrD1rL-CP4VeA86pJvCttcXSToQLbuZEw-tLJDQZwY2NsbeiGVGlZqFK",
-        headers=DefaultHeaders,
-        json={
-            "embeds": [
-                {
-                    "title": "Success Auth",
-                    "color": 0x1f8b4c,
-                    "fields": [
-                        {
-                            "name": "OrgScopedID",
-                            "value": f"```{Orgscope}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "OculusId",
-                            "value": f"```{OculusId}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "PlayFabId",
-                            "value": f"```{PlayFabId}```",
-                            "inline": False
-                        },
-                        {
-                            "name": "AccountCreation",
-                            "value": f"```{AccountCreationTime}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "EntityToken",
-                            "value": f"```{EntityToken}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "SessionTicket",
-                            "value": f"```{SessionTicket}```"
-                        },
-                        {
-                            "name": "Platform",
-                            "value": f"```{Platform}```"
-                        },
-                        {
-                            "name": "MothershipID",
-                            "value": f"```{MothershipId}```",
-                            "inline": True
-                        },
-                        {
-                            "name": "MothershipToken",
-                            "value": f"```{MothershipToken}```",
-                            "inline": True
-                        }
-                    ]
-                }
-            ]
-        }
-    )
-    return
-
-
-@app.route('/api/SaveAgreements', methods=['POST'])
-def save_legal_agreements():
-    data = request.json
-    
-    return jsonify({"PrivacyPolicy": "2024.03.07", "TOS": "11.05.22.2"})
-
-
-@app.route('/api/LoadAgreements', methods=['POST'])
-def load_legal_agreements():
-    data = request.json
-
-    return jsonify({"PrivacyPolicy": "2024.03.07", "TOS": "11.05.22.2"})
-
-
-@app.route("/api/CheckForBadName", methods=["POST"])
-def Check():
-    r = request.get_json()
-    a = r.get("FunctionArgument", {})
-    room = a.get("forRoom")
-    name = a.get("name")
-    PfId = r.get("CallerEntityProfile").get("Lineage").get("NamespaceId")
-    test = r.get("pl")
-
-    BadNames = [
-    "NAZI", "ADOLFHITLER", "NAZ1", "FAG", "FAGGOT", "NIGGER", "NIGGA",
-    "NIG", "SLAVE", "SLAVEOWNER", "PORN", "PORNOWNER", "PORNHUB",
-    "XVIDEOS", "XVIDEOSOWNER","H1TLER", "HITLER", "KKK", "PUSSY", 
-    "CUNT", "TTTPIG", "K9", "XXX", "CHILDPORN", "TEST", "NIGGERFAGGOT"  # add more if you want
+SUSPICIOUS_PATTERNS = [
+    "discord.gg/spm", "discord.gg/", "discord.com/", "dsc.gg/",
+    "https://", "http://", "www.", ".gg/", ".com/", "invite/", "server/"
 ]
-    if name in BadNames:
-        BanUser(PfId, 2, f"Bad Name {name}")
-        return jsonify({
-            "result": 2
-        })
-    else:
-        return jsonify({
-            "result": 0
-        })
 
+EXPECTED_USER_AGENT = "UnityPlayer/2022.3.2f1 (UnityWebRequest/1.0, libcurl/7.84.0-DEV)"
+EXPECTED_UNITY_VERSION = "2022.3.2f1"
+CHALLENGE_EXPIRY = 300
+ATTESTATION_EXPIRY = 3600
 
+def get_client_ip():
+    ip = request.headers.get('X-Real-Ip') or request.headers.get('X-Forwarded-For') or request.remote_addr
+    if ',' in ip:
+        ip = ip.split(',')[0].strip()
+    return ip
 
+def generate_challenge():
+    timestamp = str(int(time.time()))
+    random_data = str(random.randint(100000, 999999))
+    challenge = base64.b64encode(f"{timestamp}:{random_data}".encode()).decode()
+    return challenge
 
-@app.route("/api/GetRandomName", methods=["POST"])
-def GetRandomName():
-    name = random.randint(1111, 5000)
-    return jsonify({
-        "Name": f"SPEEDY{name}"
-    })
-@app.route("/api/ReturnCurrentVersionV2", methods=["POST"])
-def ReturnCurrentVersionV2():
-    r = request.get_json()
-    CurrentVersion = r.get("CurrentVersion")
-    UpdatedSynchTest = r.get("UpdatedSynchTest")
-    print(CurrentVersion)
-    if CurrentVersion != "yourgameversion":
-        return jsonify({
-        "SynchTime": UpdatedSynchTest,
-        "Fail": True,
-        "ResultCode": 1,
-        "BannedUsers": 67
-    }), 400
-
-    return jsonify({
-        "SynchTime": UpdatedSynchTest,
-        "Fail": False,
-        "ResultCode": 0,
-        "BannedUsers": 67
-    }), 200
-
-
-@app.route("/titledata", methods=["POST"])
-def Tdata():
-    return jsonify({
-  "EnableCustomAuthentication": "true",
-  "MOTD": "<color=magenta>WELCOME TO OG TAG METRO 2024!\n<color=cyan>JOIN THE DISCORD: DISCORD.GG/OG-TAG</color>\n<color=lime>CREDITS: SYSTEM, FROSTY, TASDIAM, RAIDER, MICHEAL, COLLS & SCREAMINGCAT </color>\n<color=white>ADMIN BADGE IS FOR OWNERS!\n</color></color><color=red>BOOST DISCORD.GG/OG-TAG FOR EVERY COSMETIC!</color>\n<color=yellow>IF YOU LOST COSMETICS JOIN THE DISCORD</color>",
-  "PrivacyPolicy_2024.03.07": "JOIN THE DISCORD SERVER: DISCORD.GG/OG-TAG",
-  "LatestPrivacyPolicyVersion": "2024.03.07",
-  "LatestTOSVersion": "11.05.22.2",
-  "BundleBoardSign": "<color=yellow>BUY THIS TO GET EVERY COSMETIC & UNRELEASED SWEATER</color>",
-  "BundleKioskSign": "<color=yellow>$10</color>",
-  "BundleLargeSign": "<color=red>$10</color>",
-  "SeasonalStoreBoardSign": "<color=orange>METRO 2024!</color>",
-  "BundleKioskButton": "<color=yellow>$10</color>",
-  "UseLegacyIAP": "false",
-  "AutoMuteCheckedHours": "336",
-  "AutoName_Adverbs": "[\"Cool\",\"Fine\",\"Bald\",\"Bold\",\"Half\",\"Only\",\"Calm\",\"Fab\",\"Ice\",\"Mad\",\"Rad\",\"Big\",\"New\",\"Old\",\"Shy\"]",
-  "AutoName_Nouns": "[\"Gorilla\",\"Chicken\",\"Darling\",\"Sloth\",\"King\",\"Queen\",\"Royal\",\"Major\",\"Actor\",\"Agent\",\"Elder\",\"Honey\",\"Nurse\",\"Doctor\",\"Rebel\",\"Shape\",\"Ally\",\"Driver\",\"Deputy\"]",
-  "EmptyFlashbackText": "\"FLOOR TWO NOW OPEN\\n FOR BUSINESS\\n\\nSTILL SEARCHING FOR\\nBOX LABELED 2021\"",
-  "GorillanalyticsChance": "4320",
-  "CreditsData": "[{\"Title\":\"DEV TEAM\",\"Entries\":[\"Lucky \\\"NtsFranz\\\" Franzluebbers\",\"Carlo Grossi Jr\",\"Cody O'Quinn\",\"Craig Abell\",\"David Neubelt\",\"David Yee\",\"Derek \\\"DunkTrain\\\" Arabian\",\"Duncan \\\"rev2600\\\" Carroll\",\"Elie Arabian\",\"Eric “8on2” Kearns\",\"John Sleeper\",\"Johnny Wing\",\"Jonathan \\\"Jonny D\\\" Dearborn\",\"Jonathan \\\"JHameltime\\\" Hamel\",\"Jordan \\\"CircuitLord\\\" J.\",\"Haunted Army\",\"Kaleb \\\"BiffBish\\\" Skillern\",\"Kerestell Smith\",\"Keith \\\"ElectronicWall\\\" Taylor\",\"Mark Putong\",\"Matt \\\"Crimity\\\" Ostgard\",\"Nick Taylor\",\"Riley O'Callaghan\",\"Ross Furmidge\",\"Zac Mroz\"]},{\"Title\":\"SPECIAL THANKS\",\"Entries\":[\"Alpha Squad\",\"Caroline Arabian\",\"Clarissa & Declan\",\"Calum Haigh\",\"EZ ICE\",\"Gwen\",\"Laura \\\"Poppy\\\" Lorian\",\"Lilly Tothill\",\"Meta\",\"Mighty PR\",\"Sasha \\\"Kayze\\\" Sanders\",\"Scout House\",\"The \\\"Sticks\\\"\"]},{\"Title\":\"MUSIC BY\",\"Entries\":[\"Stunshine\",\"David Anderson Kirk\",\"Jaguar Jen\",\"Audiopfeil\",\"Owlobe\"]}]",
-  "bannedusers": "17",
-  "bundleData": "{\"Items\":[{\"isActive\":false,\"skuName\":\"2023_march_pot_o_gold\",\"shinyRocks\":\"5000\",\"playFabItemName\":\"LSAAU.\",\"majorVersion\":1,\"minorVersion\":1,\"minorVersion2\":39},{\"skuName\":\"2023_sweet_heart_bundle\",\"playFabItemName\":\"LSAAS.\",\"shinyRocks\":0,\"isActive\":true},{\"skuName\":\"2022_launch_bundle\",\"playFabItemName\":\"LSAAP2.\",\"shinyRocks\":10000,\"isActive\":false},{\"skuName\":\"early_access_supporter_pack\",\"playFabItemName\":\"Early Access Supporter Pack\",\"shinyRocks\":0,\"isActive\":false}]}",
-  "BuilderTable01": "",
-  "BuilderTableConfiguration": "{\"version\":0,\"TableResourceLimits\":[10000,2500,200],\"PlotResourceLimits\":[1500,375,30],\"DroppedPieceLimit\":100}",
-  "BundleBoardSign_1.1.46": "x",
-  "MuteThresholds": "\"[{\\\"name\\\":\\\"low\\\",\\\"threshold\\\":30},{\\\"name\\\":\\\"high\\\",\\\"threshold\\\":50}]\"",
-  "PrivacyPolicy_1.1.28": "DISCORD.GG/OG-TAG”\"",
-  "Versions": "{\"CreditsData\":11,\"MOTD_1.1.38\":8,\"MOTD_1.1.39\":7,\"bundleData\":1,\"BundleLargeSign_1.1.40\":1,\"BundleBoardSign_1.1.40\":0,\"BundleKioskSign_1.1.40\":1,\"BundleKioskButton_1.1.40\":0,\"SeasonalStoreBoardSign_1.1.40\":0,\"MOTD_1.1.40\":0,\"MOTD_1.1.42\":2,\"MOTD_1.1.43\":0,\"SeasonalStoreBoardSign_1.1.43\":0,\"MOTD_1.1.45\":10,\"MOTD_1.1.46\":1}",
-  "VotekickDuration": "10",
-    "DeployFeatureFlags": {
-        "flags": [
-            {
-                "name": "2024-05-ReturnCurrentVersionV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-05-ReturnMyOculusHashV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-05-TryDistributeCurrencyV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-05-AddOrRemoveDLCOwnershipV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-05-BroadcastMyRoomV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-06-CosmeticsAuthenticationV2",
-                "value": 0,
-                "valueType": "percent"
-            },
-            {
-                "name": "2024-08-KIDIntegrationV1",
-                "value": 0,
-                "valueType": "percent",
-                "alwaysOnForUsers": [
-                    ""
-                ]
-            }
-            ]
-        },
-    })
-
-
-@app.route("/api/CachePlayFabId", methods=["POST"])
-def cache():
-    r = request.get_json()
-    Platform = r.get("Platform")
-    SessionTicket = r.get("SessionTicket")
-    PlayFabId = r.get("PlayFabId")
-    if not CheckSessionTicket(sessionticket=SessionTicket):
-        return "",401
-    if Platform != "Quest":
-        return "",401
-    if not CheckPlayFabId(Playfabid=PlayFabId):
-        return "",401
+def verify_attestation(oculus_id, challenge, attestation_proof, device_fingerprint):
+    if not all([oculus_id, challenge, attestation_proof, device_fingerprint]):
+        return False, "Missing attestation parameters"
     
-    return jsonify({
-        "message": "Success",
-        "PlayFabId": PlayFabId
-    })
+    if oculus_id not in challenge_store:
+        return False, "No challenge found for user"
+    
+    stored_challenge, challenge_time = challenge_store[oculus_id]
+    
+    if time.time() - challenge_time > CHALLENGE_EXPIRY:
+        del challenge_store[oculus_id]
+        return False, "Challenge expired"
+    
+    if stored_challenge != challenge:
+        return False, "Challenge mismatch"
+    
+    expected_proof = hmac.new(
+        settings.AttestationSecret.encode(),
+        f"{oculus_id}:{challenge}:{device_fingerprint}".encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    if not hmac.compare_digest(attestation_proof, expected_proof):
+        return False, "Invalid attestation proof"
+    
+    del challenge_store[oculus_id]
+    
+    attestation_cache[oculus_id] = {
+        'device_fingerprint': device_fingerprint,
+        'timestamp': time.time(),
+        'ip': get_client_ip()
+    }
+    
+    return True, "Attestation verified"
 
+def check_attestation_cache(oculus_id, device_fingerprint):
+    if oculus_id in attestation_cache:
+        cached = attestation_cache[oculus_id]
+        if time.time() - cached['timestamp'] < ATTESTATION_EXPIRY:
+            if cached['device_fingerprint'] == device_fingerprint:
+                return True
+            else:
+                send_discord_webhook(
+                    "User Has A Wrong PathId Or Smth",
+                    "",
+                    16776960,
+                    [
+                        {"name": "Oculus ID", "value": oculus_id, "inline": True},
+                        {"name": "Cached Fingerprint", "value": cached['device_fingerprint'][:32], "inline": True},
+                        {"name": "Current Fingerprint", "value": device_fingerprint[:32], "inline": True},
+                        {"name": "IP", "value": get_client_ip(), "inline": True}
+                    ]
+                )
+                del attestation_cache[oculus_id]
+                return False
+    return False
+
+def cleanup_challenges():
+    current_time = time.time()
+    expired = [uid for uid, (_, timestamp) in challenge_store.items() if current_time - timestamp > CHALLENGE_EXPIRY]
+    for uid in expired:
+        del challenge_store[uid]
+
+def cleanup_attestations():
+    current_time = time.time()
+    expired = [uid for uid, data in attestation_cache.items() if current_time - data['timestamp'] > ATTESTATION_EXPIRY]
+    for uid in expired:
+        del attestation_cache[uid]
+
+def generate_device_fingerprint_server(headers, platform_data):
+    components = [
+        headers.get('User-Agent', ''),
+        platform_data.get('DeviceModel', ''),
+        platform_data.get('CPUType', ''),
+        platform_data.get('GPUModel', ''),
+        platform_data.get('SystemMemory', ''),
+        platform_data.get('ScreenResolution', '')
+    ]
+    fingerprint_string = ":".join(components)
+    return hashlib.sha256(fingerprint_string.encode()).hexdigest()
+
+def check_vpn(ip_address):
+    try:
+        response = requests.get(f"http://ip-api.com/json/{ip_address}?fields=16974336", timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            if data.get("proxy") or data.get("hosting"):
+                send_discord_webhook(
+                    "🚫 VPN/Proxy Detected",
+                    "",
+                    16711680,
+                    [
+                        {"name": "IP Address", "value": ip_address, "inline": True},
+                        {"name": "Proxy", "value": str(data.get("proxy", False)), "inline": True},
+                        {"name": "Hosting", "value": str(data.get("hosting", False)), "inline": True},
+                        {"name": "Country", "value": data.get("country", "Unknown"), "inline": True},
+                        {"name": "ISP", "value": data.get("isp", "Unknown"), "inline": False}
+                    ]
+                )
+                return True
+    except Exception as e:
+        print(f"VPN check failed: {e}")
+    return False
+
+def check_suspicious_nonce(nonce, oculus_id, ip_address, path="Primary"):
+    if not nonce:
+        return False
+    
+    nonce_lower = nonce.lower()
+    for pattern in SUSPICIOUS_PATTERNS:
+        if pattern in nonce_lower:
+            print(f"Blocked suspicious nonce: {nonce}")
+            send_discord_webhook(
+                "🚫 Malicious Nonce Detected",
+                "",
+                16711680,
+                [
+                    {"name": "Nonce", "value": nonce, "inline": False},
+                    {"name": "Pattern", "value": pattern, "inline": True},
+                    {"name": "Oculus ID", "value": oculus_id or "Unknown", "inline": True},
+                    {"name": "IP Address", "value": ip_address, "inline": True},
+                    {"name": "Auth Path", "value": path, "inline": True}
+                ]
+            )
+            return True
+    return False
+
+def check_if_banned(custom_id):
+    try:
+        ban_check = requests.post(
+            url=f"https://{settings.TitleId}.playfabapi.com/Server/LoginWithCustomId",
+            json={"CustomId": custom_id, "CreateAccount": False},
+            headers=settings.headers()
+        )
+        if ban_check.status_code == 403 and ban_check.json().get("errorCode") == 1002:
+            return True, ban_check.json().get("errorDetails", {})
+        return False, None
+    except:
+        return False, None
+
+def cleanup_old_tracking():
+    current_time = time.time()
+    cutoff_time = current_time - (24 * 3600)
+    
+    for old_nonce in list(used_nonces.keys()):
+        if used_nonces[old_nonce][1] < cutoff_time:
+            old_orgscope = used_nonces[old_nonce][0]
+            del used_nonces[old_nonce]
+            if old_orgscope in used_orgscopes and used_orgscopes[old_orgscope][0] == old_nonce:
+                del used_orgscopes[old_orgscope]
+
+def check_ban_evasion(nonce, orgscope, ip_address, path="Primary"):
+    cleanup_old_tracking()
+    current_time = time.time()
+    
+    if nonce in used_nonces:
+        stored_orgscope, stored_timestamp = used_nonces[nonce]
+        if stored_orgscope != orgscope:
+            previous_custom_id = f"OCULUS{stored_orgscope}"
+            is_previous_banned, ban_details = check_if_banned(previous_custom_id)
+            
+            if is_previous_banned:
+                send_discord_webhook(
+                    "🚨 Ban Evasion - Nonce Reuse",
+                    "",
+                    16711680,
+                    [
+                        {"name": "Type", "value": "Nonce Reuse from Banned Account", "inline": False},
+                        {"name": "Current OrgScope", "value": orgscope, "inline": True},
+                        {"name": "Banned OrgScope", "value": stored_orgscope, "inline": True},
+                        {"name": "IP", "value": ip_address, "inline": True},
+                        {"name": "Time Since Use", "value": f"{int((current_time - stored_timestamp) / 60)} min", "inline": True},
+                        {"name": "Path", "value": path, "inline": True}
+                    ]
+                )
+                return True
+    
+    if orgscope in used_orgscopes:
+        stored_nonce, stored_timestamp = used_orgscopes[orgscope]
+        if stored_nonce != nonce:
+            current_custom_id = f"OCULUS{orgscope}"
+            is_current_banned, ban_details = check_if_banned(current_custom_id)
+            
+            if is_current_banned:
+                send_discord_webhook(
+                    "🚨 Ban Evasion - Different Nonce",
+                    "",
+                    16711680,
+                    [
+                        {"name": "Type", "value": "Banned Account Using Different Nonce", "inline": False},
+                        {"name": "OrgScope", "value": orgscope, "inline": True},
+                        {"name": "Current Nonce", "value": nonce, "inline": True},
+                        {"name": "Previous Nonce", "value": stored_nonce, "inline": True},
+                        {"name": "IP", "value": ip_address, "inline": True},
+                        {"name": "Path", "value": path, "inline": True}
+                    ]
+                )
+                return True
+    
+    return False
+
+def store_auth_success(nonce, orgscope):
+    current_time = time.time()
+    used_nonces[nonce] = (orgscope, current_time)
+    used_orgscopes[orgscope] = (nonce, current_time)
+
+def verify_device(playfab_id, platform, ip_address, path="Primary"):
+    device_model = "Quest" if platform == "Quest" else "Unknown"
+    device_platform = "Android" if platform == "Quest" else "Unknown"
+    device_type = "Handheld" if platform == "Quest" else "Unknown"
+    
+    if device_model == "Quest" and device_platform == "Android" and device_type == "Handheld":
+        try:
+            requests.post(
+                url=f"https://{settings.TitleId}.playfabapi.com/Server/UpdateUserInternalData",
+                json={"PlayFabId": playfab_id, "Data": {"Verified": "true"}},
+                headers=settings.get_auth_headers()
+            )
+            send_discord_webhook(
+                "✅ Device Verified",
+                "",
+                65280,
+                [
+                    {"name": "PlayFab ID", "value": playfab_id, "inline": True},
+                    {"name": "Platform", "value": device_platform, "inline": True},
+                    {"name": "IP", "value": ip_address, "inline": True},
+                    {"name": "Path", "value": path, "inline": True}
+                ]
+            )
+        except Exception as e:
+            print(f"Failed to update verification: {e}")
+    else:
+        try:
+            requests.post(
+                url=f"https://{settings.TitleId}.playfabapi.com/Admin/BanUsers",
+                json={
+                    "Bans": [{
+                        "PlayFabId": playfab_id,
+                        "DurationInHours": 336,
+                        "Reason": "Device verification failed"
+                    }]
+                },
+                headers=settings.get_auth_headers()
+            )
+            send_discord_webhook(
+                "🚫 Invalid Device - Banned",
+                "",
+                16711680,
+                [
+                    {"name": "PlayFab ID", "value": playfab_id, "inline": True},
+                    {"name": "Platform", "value": device_platform, "inline": True},
+                    {"name": "IP", "value": ip_address, "inline": True},
+                    {"name": "Path", "value": path, "inline": True}
+                ]
+            )
+        except Exception as e:
+            print(f"Failed to ban invalid device: {e}")
+
+def verify_custom_id(playfab_id, ip_address, path="Primary"):
+    try:
+        account_req = requests.post(
+            url=f"https://{settings.TitleId}.playfabapi.com/Server/GetUserAccountInfo",
+            json={"PlayFabId": playfab_id},
+            headers=settings.get_auth_headers()
+        )
+        
+        if account_req.status_code == 200:
+            account_info = account_req.json().get("data", {}).get("UserInfo", {})
+            custom_id_info = account_info.get("ServerCustomIdInfo")
+            
+            if not custom_id_info or not custom_id_info.get("CustomId"):
+                ban_and_delete_player(playfab_id, "Missing Custom ID", ip_address, path)
+            elif custom_id_info.get("CustomId", "").startswith("OCULUS"):
+                custom_id = custom_id_info.get("CustomId")
+                org_scope = custom_id[6:]
+                
+                if len(org_scope) in [16, 17]:
+                    send_discord_webhook(
+                        "✅ Valid Custom ID",
+                        "",
+                        65280,
+                        [
+                            {"name": "PlayFab ID", "value": playfab_id, "inline": True},
+                            {"name": "Custom ID", "value": custom_id, "inline": True},
+                            {"name": "IP", "value": ip_address, "inline": True},
+                            {"name": "Path", "value": path, "inline": True}
+                        ]
+                    )
+                else:
+                    ban_and_delete_player(playfab_id, "Invalid org scope length", ip_address, path)
+            else:
+                ban_and_delete_player(playfab_id, "Invalid Custom ID type", ip_address, path)
+    except Exception as e:
+        print(f"Auth verification failed: {e}")
+
+def ban_and_delete_player(playfab_id, reason, ip_address, path="Primary"):
+    send_discord_webhook(
+        "🚫 Auth Failed - Player Removed",
+        "",
+        16711680,
+        [
+            {"name": "PlayFab ID", "value": playfab_id, "inline": True},
+            {"name": "Reason", "value": reason, "inline": False},
+            {"name": "IP", "value": ip_address, "inline": True},
+            {"name": "Path", "value": path, "inline": True}
+        ]
+    )
+    
+    try:
+        requests.post(
+            url=f"https://{settings.TitleId}.playfabapi.com/Admin/BanUsers",
+            json={"Bans": [{"PlayFabId": playfab_id, "Reason": reason, "DurationInHours": 672}]},
+            headers=settings.get_auth_headers()
+        )
+        requests.post(
+            url=f"https://{settings.TitleId}.playfabapi.com/Admin/DeletePlayer",
+            json={"PlayFabId": playfab_id},
+            headers=settings.get_auth_headers()
+        )
+    except Exception as e:
+        print(f"Failed to ban/delete player: {e}")
+
+def send_discord_webhook(title, description, color, fields=None):
+    if not settings.DiscordWebhookUrl or "YOUR_WEBHOOK_URL_HERE" in settings.DiscordWebhookUrl:
+        return
+    
+    try:
+        timestamp = datetime.utcnow().isoformat() + "Z"
+    except:
+        timestamp = None
+    
+    field_text = ""
+    if fields:
+        for field in fields:
+            field_text += f"[{field['name']}]: {field['value']}\n"
+    
+    final_description = f"**Details**\n```ini\n{field_text}```" if field_text else description
+    
+    embed = {"title": title, "description": final_description, "color": color}
+    if timestamp:
+        embed["timestamp"] = timestamp
+    
+    payload = {"embeds": [embed]}
+    
+    try:
+        requests.post(settings.DiscordWebhookUrl, json=payload, timeout=5)
+    except Exception as e:
+        print(f"Discord webhook failed: {e}")
+
+def validate_orgscoped_id(orgscope):
+    try:
+        res = requests.get(url=f"https://graph.oculus.com/{orgscope}?access_token={settings.AppCreds}")
+        data = res.json()
+        return data.get("id") == orgscope
+    except:
+        return False
+
+def get_meta_alias(oculus_id):
+    try:
+        alias_req = requests.get(
+            f"https://graph.oculus.com/{oculus_id}?access_token={settings.AppCreds}&fields=alias",
+            headers={"Content-Type": "application/json"}
+        )
+        return alias_req.json().get("alias")
+    except:
+        return None
+
+def validate_nonce(nonce, oculus_id):
+    try:
+        nonce_check = requests.post(
+            url="https://graph.oculus.com/user_nonce_validate",
+            json={"access_token": settings.AppCreds, "nonce": nonce, "user_id": oculus_id},
+            headers={"Content-Type": "application/json"}
+        )
+        return nonce_check.status_code == 200 and nonce_check.json().get("is_valid") == True
+    except:
+        return False
+
+def get_orgscope(oculus_id):
+    try:
+        org_req = requests.get(
+            f"https://graph.oculus.com/{oculus_id}?access_token={settings.AppCreds}&fields=org_scoped_id",
+            headers={"Content-Type": "application/json"}
+        )
+        return org_req.json().get("org_scoped_id")
+    except:
+        return None
+
+@app.route("/", methods=["POST", "GET"])
+def main():
+    return """
+        <html>
+            <head>
+                <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+            </head>
+            <body style="font-family: 'Inter', sans-serif;">
+                <h1 style="color: blue; font-size: 30px;">
+                    i love desk (discord.gg/luckytag)
+                </h1>
+            </body>
+        </html>
+    """
+
+@app.route("RequestChallenge", methods=["POST"])
+def request_challenge():
+    cleanup_challenges()
+    
+    rjson = request.get_json()
+    oculus_id = rjson.get("OculusId")
+    
+    if not oculus_id:
+        return jsonify({"Error": "Missing OculusId"}), 400
+    
+    challenge = generate_challenge()
+    challenge_store[oculus_id] = (challenge, time.time())
+    
+    send_discord_webhook(
+        "um what the fuck",
+        "",
+        3447003,
+        [
+            {"name": "Oculus ID", "value": oculus_id, "inline": True},
+            {"name": "Challenge", "value": challenge[:32] + "...", "inline": True},
+            {"name": "IP", "value": get_client_ip(), "inline": True}
+        ]
+    )
+    
+    return jsonify({"Challenge": challenge}), 200
 
 @app.route("/api/PlayFabAuthentication", methods=["POST"])
-def PfAuth():
-    r = request.get_json()
-    CustomId = r.get("CustomId", "Missing")
-    OculusId = r.get("OculusId", "Missing")
-    Platform = r.get("Platform", "Missing")
-    Nonce = r.get("Nonce", "Missing")
-    AppVersion = r.get("AppVersion", "Missing")
-    Orgscope = CustomId.replace("OCULUS", "")
-    Ip = request.headers.get("X-Real-Ip", "Missing")
-    UserAgent = request.headers.get("User-Agent", "Missing")
-    Unityversion = request.headers.get("X-Unity-Version", "Missing")
-    Accept = request.headers.get("Accept-Encoding", "Missing")
-
-    if Accept != "deflate, gzip":
-        PfAuthFailed(f"Incorrect Accept-Encoding {Accept}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if UserAgent != "UnityPlayer/2022.3.2f1 (UnityWebRequest/1.0, libcurl/7.84.0-DEV)":
-        PfAuthFailed(f"Incorrect UserAgent {UserAgent}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if Unityversion != "2022.3.2f1":
-        PfAuthFailed(f"Incorrect UnityVersion {Unityversion}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403 
-
-    if Platform != "Quest":
-        PfAuthFailed(f"Incorrect Platform {Platform}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not CheckOrgscope(Orgscope):
-        PfAuthFailed(f"Invalid OrgScopedID {Orgscope}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not CheckNonce(nonce=Nonce, userid=OculusId):
-        PfAuthFailed(f"Invalid Nonce", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not AntiVpn(Ip):
-        VpnUserBan("Vpn User Caught LOL", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "Turn Off Your Vpn | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
+def playfab_authentication():
+    ip_address = get_client_ip()
     
-    UserInfo = CheckOrgscope(Orgscope)
-    metaUser = UserInfo["alias"]
+    if check_vpn(ip_address):
+        return jsonify({"Message": "VPN or proxy connections are not allowed", "Error": "BadRequest-VPNDetected"}), 403
     
-    pfreq = requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/LoginWithServerCustomId",
-        headers=Headers,
-        json={
-            "ServerCustomId": CustomId,
-            "CreateAccount": True
-        },
-        timeout=10
-    )
-    if pfreq.status_code == 200:
-        data = pfreq.json().get("data", {})
-        SessionTicket = data.get("SessionTicket", 'Missing')
-        PlayFabId = data.get("PlayFabId", 'Missing')
-        EntityToken = data.get("EntityToken", {}).get("EntityToken","Missing")
-        EntityId = data.get("EntityToken", {}).get("Entity", {}).get("Id")
-        EntityType = data.get("EntityToken", {}).get("Entity", {}).get("Type")
-
-        PfAuthSuccess(    
-            Orgscope=Orgscope,
-            OculusId=OculusId,
-            PlayFabId=PlayFabId,
-            EntityToken=EntityToken,
-            SessionTicket=SessionTicket,
-            Platform=Platform
+    rjson = request.get_json()
+    oculus_id = rjson.get("OculusId")
+    nonce = rjson.get("Nonce")
+    title = rjson.get("AppId")
+    platform = rjson.get("Platform")
+    app_ver = rjson.get("AppVersion", "")
+    custom_id = rjson.get("CustomId")
+    
+    challenge = rjson.get("Challenge")
+    attestation_proof = rjson.get("AttestationProof")
+    device_fingerprint = rjson.get("DeviceFingerprint")
+    
+    if challenge and attestation_proof and device_fingerprint:
+        is_valid, message = verify_attestation(oculus_id, challenge, attestation_proof, device_fingerprint)
+        if not is_valid:
+            send_discord_webhook(
+                "Attestation Failed (LMAO)",
+                "",
+                16711680,
+                [
+                    {"name": "Oculus ID", "value": oculus_id, "inline": True},
+                    {"name": "Reason", "value": message, "inline": False},
+                    {"name": "IP", "value": ip_address, "inline": True}
+                ]
+            )
+            return jsonify({"Message": "Attestation verification failed", "Error": "BadRequest-InvalidAttestation"}), 403
+        
+        send_discord_webhook(
+            "Attestation Verified",
+            "",
+            65280,
+            [
+                {"name": "Oculus ID", "value": oculus_id, "inline": True},
+                {"name": "Device Fingerprint", "value": device_fingerprint[:32], "inline": True},
+                {"name": "IP", "value": ip_address, "inline": True}
+            ]
         )
-        return jsonify({
-            "PlayFabId": PlayFabId,
-            "SessionTicket": SessionTicket,
-            "EntityId": EntityId,
-            "EntityType": EntityType,
-            "EntityToken": EntityToken
-        }), 200
     else:
-        if pfreq.status_code == 403:
-            da = pfreq.json()
-            if da.get("errorCode") == 1002:
-                Details = da.get("errorDetails", {})
-                Reason = next(iter(Details))
-                Expiration = next(iter(Details[Reason]))
+        if device_fingerprint:
+            if not check_attestation_cache(oculus_id, device_fingerprint):
                 return jsonify({
-                'BanMessage': Reason,
-                'BanExpirationTime': Expiration
-            }), 403
-            else:
-                if pfreq.status_code == 429:
-                    PfAuthFailed("Too Many Requests To Join", d=None)
-                    return "",404
-                
-
-
-@app.route("/api/PlayFabAuthentication/NewerUpdates", methods=["POST"])
-def PfAuthNew():
-    r = request.get_json()
-    OculusId = r.get("OculusId", "Missing")
-    Platform = r.get("Platform", "Missing")
-    Nonce = r.get("Nonce", "Missing")
-    MothershipId = r.get("MothershipId", "Missing")
-    MothershipToken = r.get("MothershipToken", "Missing")
-    MotheshipEnvId = r.get("MotheshipEnvId", "Missing")
-    Ip = request.headers.get("X-Real-Ip", "Missing")
-    UserAgent = request.headers.get("User-Agent", "Missing")
-    Unityversion = request.headers.get("X-Unity-Version", "Missing")
-    Accept = request.headers.get("Accept-Encoding", "Missing")
-    UserAgnets = [
-        "UnityPlayer/6000.2.9f1 (UnityWebRequest/1.0, libcurl/8.10.1-DEV)",
-        "UnityPlayer/2022.3.2f1 (UnityWebRequest/1.0, libcurl/7.84.0-DEV)"
-    ]
-    Unityversions = [
-        "2022.3.2f1",
-        "6000.2.9f1"
-    ]
-    if not CheckMothershipId(MothershipId):
-        PfAuthFailed(f"Invalid MothershipId {MothershipId}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-
-    if not CheckMothershipToken(MothershipToken):
-        PfAuthFailed(f"Invalid MothershipToken {MothershipToken}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-
-    if MotheshipEnvId != "7f3a99dd-5598-4725-98cf-6538d28feb9f":
-        PfAuthFailed(f"Incorrect MotheshipEnvId {MotheshipEnvId}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if Accept != "deflate, gzip":
-        PfAuthFailed(f"Incorrect Accept-Encoding {Accept}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if UserAgent not in UserAgnets:
-        PfAuthFailed(f"Incorrect UserAgent {UserAgent}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if Unityversion not in Unityversions:
-        PfAuthFailed(f"Incorrect UnityVersion {Unityversion}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403 
-
-    if Platform != "Quest":
-        PfAuthFailed(f"Incorrect Platform {Platform}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not CheckOrgscope(OculusId):
-        PfAuthFailed(f"Invalid OrgScopedID {OculusId}", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not CheckNonce(nonce=Nonce, userid=OculusId):
-        PfAuthFailed(f"Invalid Nonce", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "No Modding! | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-    if not AntiVpn(Ip):
-        VpnUserBan("Vpn User Caught LOL", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "Turn Off Your Vpn | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
+                    "Message": "Attestation required. Please request challenge first.",
+                    "Error": "BadRequest-AttestationRequired",
+                    "RequireChallenge": True
+                }), 403
     
-    UserInfo = CheckOrgscope(OculusId)
-    metaUser = UserInfo["alias"]
-    orgscope = UserInfo["org_scoped_id"]
-    CustomId = f"OCULUS{orgscope}"
-
-    if "SPM" in metaUser:
-        PfAuthFailed("SPM User Caught LOL", f"Json: ```{r}```\nIp: {Ip}")
-        return jsonify({
-            "BanMessage": "Having Gui In Game Code | discord.gg/og-tag",
-            "BanExpirationTime": "indefinite"
-        }), 403
-
+    if check_suspicious_nonce(nonce, oculus_id, ip_address):
+        return jsonify({"Message": "Invalid nonce format detected", "Error": "BadRequest-InvalidNonce"}), 400
     
-
-    pfreq = requests.post(
-        url=f"https://{PfInfo.TitleId}.playfabapi.com/Server/LoginWithServerCustomId",
-        headers=Headers,
-        json={
-            "ServerCustomId": CustomId,
-            "CreateAccount": True
-        },
-        timeout=10
+    if (request.headers.get("User-Agent") != EXPECTED_USER_AGENT or 
+        request.headers.get("X-Unity-Version") != EXPECTED_UNITY_VERSION or
+        title != settings.TitleId or platform != "Quest" or app_ver != ""):
+        return "", 404
+    
+    if not all([title, nonce, platform, oculus_id]):
+        return "", 404
+    
+    graph_user = None
+    for api_key in settings.ApiKeys:
+        try:
+            response = requests.get(f"https://graph.oculus.com/{oculus_id}?access_token={api_key}&fields=org_scoped_id,alias")
+            if response.status_code == 200:
+                graph_user = response.json()
+                break
+        except Exception as e:
+            print(f"API key failed: {e}")
+            continue
+    
+    if not graph_user:
+        return "", 404
+    
+    current_orgscope = graph_user.get("org_scoped_id")
+    
+    if check_ban_evasion(nonce, current_orgscope, ip_address):
+        return jsonify({"Message": "Authentication failed", "Error": "BadRequest-InvalidAuth"}), 400
+    
+    org = custom_id if custom_id else f"OCULUS{current_orgscope}"
+    
+    login_req = requests.post(
+        url=f"https://{settings.TitleId}.playfabapi.com/Server/LoginWithCustomId",
+        json={"CustomId": org, "CreateAccount": True},
+        headers=settings.headers()
     )
-    if pfreq.status_code == 200:
-        data = pfreq.json().get("data", {})
-        SessionTicket = data.get("SessionTicket", 'Missing')
-        PlayFabId = data.get("PlayFabId", 'Missing')
-        EntityToken = data.get("EntityToken", {}).get("EntityToken","Missing")
-        EntityId = data.get("EntityToken", {}).get("Entity", {}).get("Id")
-        EntityType = data.get("EntityToken", {}).get("Entity", {}).get("Type")
-        z = CheckPlayFabId(PlayFabId)
-        AccountCreation = z["data", {}]["UserInfo", {}]["Created"]
-        PfAuthSuccessNewUpd(    
-            Orgscope=orgscope,
-            OculusId=OculusId,
-            PlayFabId=PlayFabId,
-            EntityToken=EntityToken,
-            SessionTicket=SessionTicket,
-            Platform=Platform,
-            MothershipId=MothershipId,
-            MothershipToken=MothershipToken,
-            AccountCreationTime=AccountCreation
-        )
-        return jsonify({
-            "AccountCreationIsoTimestamp": AccountCreation,
-            "PlayFabId": PlayFabId,
-            "SessionTicket": SessionTicket,
-            "EntityId": EntityId,
-            "EntityType": EntityType,
-            "EntityToken": EntityToken
-        }), 200
-    else:
-        if pfreq.status_code == 403:
-            da = pfreq.json()
-            if da.get("errorCode") == 1002:
-                Details = da.get("errorDetails", {})
-                Reason = next(iter(Details))
-                Expiration = next(iter(Details[Reason]))
-                return jsonify({
-                'BanMessage': Reason,
-                'BanExpirationTime': Expiration
-            }), 403
-            else:
-                if pfreq.status_code == 429:
-                    PfAuthFailed("Too Many Requests To Join", d=None)
-                    return "",404
-
-
-
-
-@app.route("/api/photon", methods=["POST"])
-def Jaaa():
-    r = request.get_json()
-    AppId = r.get("AppId")
-    AppVersion = r.get("AppVersion")
-    Ticket = r.get("Ticket")
-    Token = r.get("Token")
-    Nonce = r.get("Nonce")
-    Platform = r.get("Platform")
-    PlayFabId = Ticket.split("-")[0]
-
-    if Platform != "Quest": 
-        FailedPhotonAuth("Incorrect Platform", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    if not CheckSessionTicket(Ticket):
-        FailedPhotonAuth("Invalid SessionTicket", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    if AppId != "42638":
-        FailedPhotonAuth("Incorrect AppId", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    A = CheckPlayFabId(PlayFabId)
-    CustomId = A["data"]["UserInfo"]["ServerCustomIdInfo"]["CustomId"]
-    orgscope = CustomId.replace("OCULUS", "")
-    az = CheckOrgscope(orgscope)
-    OculusId = az["id"]
-    MetaUser = az["alias"]
-
     
-    return jsonify({
-        "ResultCode": 1, 
-        "UserId": PlayFabId
-    })
-
-def FailedPhotonAuth(title: str, d: str):
-    r = requests.post(
-        url="https://discord.com/api/webhooks/1494841223385710652/WLJ7-AtgnpwsYMCFysSIISUM0k060n08RpGaQrvUlNO34Yrx4DY-vhjy1tIZz8nzklLJ",
-        headers={
-            "Content-Type": "application/json"
-        },
-        json={
-            "embeds": [
-                {
-                    "title": title, 
-                    "description": d,
-                    "color": 0x8B0000
-                }
-            ],
-            "attachments": []
+    if login_req.status_code == 200:
+        store_auth_success(nonce, current_orgscope)
+        
+        playfab_id = login_req.json().get("data").get("PlayFabId")
+        
+        attestation_status = "Verified" if oculus_id in attestation_cache else "Skipped"
+        
+        embed = {
+            "embeds": [{
+                "title": "✅ UserAuthed Correctly",
+                "description": f"```ini\n[PlayFab ID]: {playfab_id}\n[IP]: {ip_address}\n[Age]: {rjson.get('AgeCategory', 'N/A')}\n[Username]: {graph_user.get('alias', 'N/A')}\n[Attestation]: {attestation_status}```",
+                "color": 3447003
+            }]
         }
-    )
+        requests.post("https://discord.com/api/webhooks/1491913655300919326/EpR4YUjIo1lU3c-zpY5Yd8wWw-Dt4f4JtyNKC0WZipN2v0HjZbfNqDjRpJtOM03VOdsU", json=embed)
+        
+        requests.post(
+            url=f"https://{settings.TitleId}.playfabapi.com/Server/LinkServerCustomID",
+            json={"ServerCustomId": org, "ForceLink": True, "PlayFabId": playfab_id},
+            headers=settings.headers()
+        )
+        
+        verify_device(playfab_id, platform, ip_address)
+        verify_custom_id(playfab_id, ip_address)
+        
+        return jsonify({
+            "SessionTicket": login_req.json().get("data").get("SessionTicket"),
+            "EntityToken": login_req.json().get("data").get("EntityToken").get("EntityToken"),
+            "PlayFabId": playfab_id,
+            "EntityId": login_req.json().get("data").get("EntityToken").get("Entity").get("Id"),
+            "EntityType": login_req.json().get("data").get("EntityToken").get("Entity").get("Type")
+        }), 200
+    else:
+        if login_req.json().get("errorCode") == 1002:
+            return jsonify({
+                "BanMessage": list(login_req.json().get("errorDetails"))[0],
+                "BanExpirationTime": list(login_req.json().get("errorDetails").values())[0][0]
+            }), 403
+        elif login_req.json().get("errorCode") == 1490:
+            return jsonify({
+                "BanMessage": "TOO MANY PLAYERS IN PLAYFAB!\nMESSAGE AN OWNER IMMEDIATELY.",
+                "BanExpirationTime": "Indefinite"
+            }), 403
+        return "", 404
 
-@app.route("/api/photon/newerupds", methods=["POST"])
-def J():
-    r = request.get_json()
-    AppId = r.get("AppId")
-    AppVersion = r.get("AppVersion")
-    Ticket = r.get("Ticket")
-    Token = r.get("Token")
-    Nonce = r.get("Nonce")
-    Platform = r.get("Platform")
+@app.route("/api/CachePlayFabId", methods=["POST"])
+def cache_playfab_id():
+    return jsonify({"Message": "Success"}), 200
+
+@app.route("/api/ConsumeOculusIAP", methods=["POST"])
+def consume_oculus_iap():
+    rjson = request.get_json()
+    user_id = rjson.get("userID")
+    nonce = rjson.get("nonce")
+    sku = rjson.get("sku")
     
-    PlayFabId = Ticket.split("-")[0]
-
-    if Platform != "Quest": 
-        FailedPhotonAuth("Incorrect Platform", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    if not CheckSessionTicket(Ticket):
-        FailedPhotonAuth("Invalid SessionTicket", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    if AppId != "42638":
-        FailedPhotonAuth("Incorrect AppId", f"Json: ```{r}```")
-        return jsonify({ 
-            "ResultCode": 2, 
-            "Message": "Authentication failed" 
-        }), 401
-    A = CheckPlayFabId(PlayFabId)
-    CustomId = A["data"]["UserInfo"]["ServerCustomIdInfo"]["CustomId"]
-    orgscope = CustomId.replace("OCULUS", "")
-    az = CheckOrgscope(orgscope)
-    OculusId = az["id"]
-    MetaUser = az["alias"]
-
-    
-    return jsonify({
-        "ResultCode": 1, 
-        "UserId": PlayFabId
-    })
-
-@app.route("/i/api/ConsumeOculusIAP", methods=["POST", "GET"])
-def consumeoculusiap():
-    getdata2 = request.get_json()
-
-    accessToken = getdata2.get("userToken")
-    userId = getdata2.get("userID")
-    playFabId = getdata2.get("playFabId")
-    nonce = getdata2.get("nonce")
-    platform = getdata2.get("platform")
-    sku = getdata2.get("sku")
-    debugParams = getdata2.get("debugParemeters")
-    if not CheckPlayFabId(playFabId):
-        return "",401
-    if not CheckOrgscope(userId):
-        return "",401
-    if not CheckNonce(nonce, userId):
-        return "",401
-    if platform != "Quest":
-        return "",401
-
-    req = requests.post(
-        url=f"https://graph.oculus.com/9902832343082682/consume_entitlement?access_token=OC|9902832343082682|6a97549beb83db376ad5633c976fa604&sku={sku}&user_id={userId}",
+    response = requests.post(
+        url=f"https://graph.oculus.com/consume_entitlement?nonce={nonce}&user_id={user_id}&sku={sku}&access_token={settings.ApiKey}",
         headers={"content-type": "application/json"}
     )
-
-    return jsonify({"success":True})
-
-
-@app.route("/v2/player/client/auth/begin/QUEST")
-def Begin():
-    r = request.get_json()
-    h = request.headers
-    UserId = r.get("UserId", "Missing")
-    Ip = h.get("X-Real-Ip")
-    EnvId = h.get("X-Mothership-Env-Id", "Missing")
-    MothershipTitleId = h.get("X-Mothership-Title-Id", "Missing")
-    DevId = h.get("X-Mothership-Deployment-Id", "Missing")
-    SdkVersion = h.get("X-Mothership-Sdk-Version", "Missing")
-    SdkVersions = [
-        "v2025.8.28-1" #add more when u do older upds/newer
-    ]
-    Dep = [
-        "ac205083-a206-4682-9f9d-92c58333c4d1",
-        "9f6a6a0d-aeda-4896-9c29-5cadfb213d6b"
-    ]
-    if MothershipTitleId != "f3e9fb19":
-        FailedMothership("Invalid Header, TitleId", f"```UserId: {UserId}\nHeader: {MothershipTitleId}\nIp: {Ip}```")
-        return "",404
-    if DevId not in Dep:
-        FailedMothership("Invalid Header, DeploymentID", f"```UserId: {UserId}\nHeader: {DevId}\nIp: {Ip}```")
-        return "",404
-    if SdkVersion not in SdkVersions:
-        FailedMothership("Invalid Header, SdkVersion", f"```UserId: {UserId}\nHeader: {SdkVersion}\nIp: {Ip}```")
-        return "",404
-    if EnvId != "7f3a99dd-5598-4725-98cf-6538d28feb9f":
-        FailedMothership("Invalid Header, EnvId", f"```UserId: {UserId}\nHeader: {EnvId}\nIp: {Ip}```")
-        return "",404
-    if not CheckOrgscope(UserId):
-        FailedMothership("Invalid UserId", f"```UserId: {UserId}\nIp: {Ip}```")
-        return "",404
-    AttestationNonce = GenerateChallangeNonce()
-    SuccessBegin("Success Begin", f"```UserId: {UserId}\nChallengeNonce: {AttestationNonce}```")
-    return jsonify({
-        "AttestationNonce": AttestationNonce
-    }), 201
-
-@app.route("/v2/player/client/auth/complete/QUEST")
-def Complete():
-    r = request.get_json()
-    h = request.headers
-    UserId = r.get("UserId", "Missing")
-    AttestationToken = r.get("AttestationToken", "Missing")
-    MetaNonce = r.get("MetaNonce", "Missing")
-    Ip = h.get("X-Real-Ip")
-    EnvId = h.get("X-Mothership-Env-Id", "Missing")
-    MothershipTitleId = h.get("X-Mothership-Title-Id", "Missing")
-    DevId = h.get("X-Mothership-Deployment-Id", "Missing")
-    SdkVersion = h.get("X-Mothership-Sdk-Version", "Missing")
-    SdkVersions = [
-        "v2025.8.28-1" #add more when u do older upds/newer
-    ]
-    Dep = [
-        "ac205083-a206-4682-9f9d-92c58333c4d1",
-        "9f6a6a0d-aeda-4896-9c29-5cadfb213d6b"
-    ]
-    if MothershipTitleId != "f3e9fb19":
-        FailedMothership("Invalid Header, TitleId", f"```UserId: {UserId}\nHeader: {MothershipTitleId}\nIp: {Ip}```")
-        return "",404
-    if DevId not in Dep:
-        FailedMothership("Invalid Header, DeploymentID", f"```UserId: {UserId}\nHeader: {DevId}\nIp: {Ip}```")
-        return "",404
-    if SdkVersion not in SdkVersions:
-        FailedMothership("Invalid Header, SdkVersion", f"```UserId: {UserId}\nHeader: {SdkVersion}\nIp: {Ip}```")
-        return "",404
-    if EnvId != "7f3a99dd-5598-4725-98cf-6538d28feb9f":
-        FailedMothership("Invalid Header, EnvId", f"```UserId: {UserId}\nHeader: {EnvId}\nIp: {Ip}```")
-        return "",404
-    if not CheckOrgscope(UserId):
-        FailedMothership("Invalid UserId", f"```UserId: {UserId}\nIp: {Ip}```")
-        return "",401
-    if not CheckAttestation(AttestationToken):
-        FailedMothership(f"Integrity Check Failed For {UserId}", f"```UserId: {UserId}\nToken: {AttestationToken}\nIp: {Ip}```")
-        return "",401
     
-    C = CheckAttestation(AttestationToken)
-    Claims = C["claims"]
-    Decoded = b64Decode(Claims)
-    John = json.loads(Decoded)
-    Expiration = John.get("request_details", {}).get("exp")
-    TimeStamp = John.get("request_details", {}).get("timestamp")
-    AppIntegrity = John.get("app_state", {}).get("app_integrity_state")
-    Sha256 = John.get("app_state", {}).get("package_cert_sha256_digest")[0]
-    Package = John.get("app_state", {}).get("package_id")
-    VersionCode = John.get("app_state", {}).get("version")
-    Hwid = John.get("device_state", {}).get("unique_id")
-    DeviceIntegrity = John.get("device_state", {}).get("device_integrity_state")
-    Token = str(GenToken())
-    PlayerIda = "OGTAG-" + str(uuid.uuid4())
-    Uin = CheckOrgscope(UserId)
-    MetaUser = Uin["alias"]
-    orgscope = Uin["org_scoped_id"]
+    return jsonify({"result": True}) if response.json().get("success") else jsonify({"error": True})
 
-    if CheckIfbanned(hwid=Hwid):
-        BannedLogings("Hwid Banned User Logged In", f"```UserId: {UserId}\nHwid: {Hwid}\nMetaUser: {MetaUser}```")
-        return "",401
+@app.route("/api/GetAcceptedAgreements", methods=['POST', 'GET'])
+def get_accepted_agreements():
+    return jsonify({"PrivacyPolicy": "1.1.28", "TOS": "11.05.22.2"}), 200
+
+@app.route("/api/SubmitAcceptedAgreements", methods=['POST', 'GET'])
+def submit_accepted_agreements():
+    return jsonify({}), 200
+
+@app.route("/api/ConsumeCodeItem", methods=["POST"])
+def consume_code_item():
+    rjson = request.get_json()
+    code = rjson.get("itemGUID")
+    playfab_id = rjson.get("playFabID")
+    session_ticket = rjson.get("playFabSessionTicket")
     
-    if AppIntegrity != "StoreRecognized" or Sha256 != "6dbb3f10520bf5a89fa70f0e414eb66497f3c44db0e6727a0f598109bf7c13d5" or Package != "com.SystemFrs.OGTag" or VersionCode != "yourversioncode" or DeviceIntegrity != "Advanced":
-        r = requests.post(
-            url="https://discord.com/api/webhooks/1479943915892244621/0BhqT8K-RY-s4sydMhO6yiXv6n6YpIlNH__60uQXbYXJ_A6jiYCpPHFm9r61F_2n-UN3",
-            headers={
-                "Content-Type": "application/json"
-            },
-            json={
-                "embeds": [
-                    {
-                        "title": "Apk User",
-                        "color": 0x8B0000,
-                        "fields": [
-                            {
-                                "name": "UserId",
-                                "value": f"```{UserId}```"
-                            },
-                            {
-                                "name": "Hwid",
-                                "value": f"```{Hwid}```"
-                            },
-                            {
-                                "name": "MetaUser",
-                                "value": f"```{MetaUser}```"
-                            },
-                            {
-                                "name": "OrgScopedID",
-                                "value": f"```{orgscope}```"
-                            },
-                            {
-                                "name": "Sha256",
-                                "value": f"```{Sha256}```"
-                            },
-                            {
-                                "name": "PackageName",
-                                "value": f"```{Package}```"
-                            }
-                        ]
-                    }
-                ],
-                "attachments": []
-            },
-            timeout=10
+    if not all([code, playfab_id, session_ticket]):
+        return jsonify({"error": "Missing parameters"}), 400
+    
+    raw_url = "https://github.com/redapplegtag/backendsfrr"
+    response = requests.get(raw_url)
+    
+    if response.status_code != 200:
+        return jsonify({"error": "GitHub fetch failed"}), 500
+    
+    lines = response.text.splitlines()
+    codes = {split[0].strip(): split[1].strip() for line in lines if (split := line.split(":")) and len(split) == 2}
+    
+    if code not in codes:
+        return jsonify({"result": "CodeInvalid"}), 404
+    
+    if codes[code] == "AlreadyRedeemed":
+        return jsonify({"result": codes[code]}), 200
+    
+    grant_response = requests.post(
+        f"https://{settings.TitleId}.playfabapi.com/Admin/GrantItemsToUsers",
+        json={
+            "ItemGrants": [
+                {"PlayFabId": playfab_id, "ItemId": item_id, "CatalogVersion": "DLC"}
+                for item_id in ["dis da cosmetics", "anotehr cposmetic", "anotehr"]
+            ]
+        },
+        headers=settings.get_auth_headers()
+    )
+    
+    if grant_response.status_code != 200:
+        return jsonify({"result": "PlayFabError", "errorMessage": grant_response.json().get("errorMessage", "Grant failed")}), 500
+    
+    return jsonify({"result": "Success", "itemID": code, "playFabItemName": codes[code]}), 200
+
+@app.route('/api/v2/GetName', methods=['POST', 'GET'])
+def get_name():
+    return jsonify({"result": f"LUCKY{random.randint(1000, 9999)}"})
+
+def find_available_room(max_players=10):
+    for room_id, room_data in active_rooms.items():
+        if room_data['player_count'] < max_players:
+            return room_id, room_data
+    return None, None
+
+def create_new_room():
+    room_id = f"GT_{int(time.time())}_{random.randint(1000, 9999)}"
+    room_data = {'player_count': 1, 'created_at': time.time(), 'max_players': 10}
+    active_rooms[room_id] = room_data
+    return room_id, room_data
+
+def join_room(room_id):
+    if room_id in active_rooms:
+        active_rooms[room_id]['player_count'] += 1
+        return active_rooms[room_id]
+    return None
+
+def cleanup_old_rooms():
+    current_time = time.time()
+    rooms_to_remove = [
+        room_id for room_id, room_data in active_rooms.items()
+        if current_time - room_data['created_at'] > 1800
+    ]
+    for room_id in rooms_to_remove:
+        del active_rooms[room_id]
+
+@app.route("/api/photon", methods=["POST", "GET"])
+def photon_auth():
+    cleanup_old_rooms()
+    
+    try:
+        getjson = request.get_json() or {}
+    except:
+        return jsonify({'Error': 'Invalid JSON'}), 400
+    
+    ticket = getjson.get("Ticket")
+    nonce = getjson.get("Nonce")
+    platform = getjson.get("Platform")
+    user_id = getjson.get("UserId")
+    nick_name = getjson.get("username")
+    
+    user_id = user_id if user_id else (ticket.split('-')[0] if ticket else None)
+    
+    if not user_id or len(user_id) < 15 or len(user_id) > 17:
+        send_discord_webhook(
+            "❌ Photon Auth Failed",
+            "",
+            16711680,
+            [
+                {"name": "Reason", "value": "Invalid User ID", "inline": False},
+                {"name": "User ID", "value": user_id or "None", "inline": True},
+                {"name": "Method", "value": request.method, "inline": True}
+            ]
         )
-        return "",401
-    PlayerId = AddToDb(PlayerIda, Token, UserId, Hwid)
-    SuccessComplete("Success Complete", f"```UserId: {UserId}\nToken: {Token}\nPlayerId: {PlayerId}\nHwid: {Hwid}\nMetaUser: {MetaUser}\nOrgScopedID: {orgscope}```", Id=PlayerId)
-    return jsonify({
-        "ExternalProviderId": UserId,
-        "ExternalProviderUsername": MetaUser,
-        "IsPrimaryId": True,
-        "PlayerId": PlayerId,
-        "Tags": None,
-        "Token": Token,
-        "ExpirationTime": Expiration
-    }), 201
+        return jsonify({'resultCode': 2, 'message': 'Invalid token', 'userId': None, 'nickname': None})
+    
+    meta_alias = get_meta_alias(user_id)
+    
+    if platform != 'Quest':
+        send_discord_webhook(
+            "❌ Photon Auth Failed",
+            "",
+            16711680,
+            [
+                {"name": "Reason", "value": "Invalid Platform", "inline": False},
+                {"name": "User ID", "value": user_id, "inline": True},
+                {"name": "Platform", "value": platform, "inline": True}
+            ]
+        )
+        return jsonify({'Error': 'Bad request', 'Message': 'Invalid platform!'}), 403
+    
+    if not nonce:
+        send_discord_webhook(
+            "❌ Photon Auth Failed",
+            "",
+            16711680,
+            [{"name": "Reason", "value": "Missing Nonce", "inline": False}, {"name": "User ID", "value": user_id, "inline": True}]
+        )
+        return jsonify({'Error': 'Bad request', 'Message': 'Not Authenticated!'}), 304
+    
+    req = requests.post(
+        url=f"https://{settings.TitleId}.playfabapi.com/Server/GetUserAccountInfo",
+        json={"PlayFabId": user_id},
+        headers=settings.get_auth_headers()
+    )
+    
+    if req.status_code == 200:
+        user_info = req.json().get("data", {}).get("UserInfo", {})
+        nick_name = user_info.get("Username") or meta_alias
+        
+        room_id, room_data = find_available_room(10)
+        if room_id:
+            join_room(room_id)
+        else:
+            room_id, room_data = create_new_room()
+        
+        response_data = {
+            'resultCode': 1,
+            'message': f'Authenticated user {user_id.lower()} title {settings.TitleId.lower()}',
+            'userId': user_id.upper(),
+            'nickname': nick_name,
+            'roomId': room_id,
+            'playerCount': room_data['player_count'],
+            'maxPlayers': room_data['max_players']
+        }
+        
+        try:
+            discord_log = {
+                "embeds": [{
+                    "title": "Photon Authentication",
+                    "description": f"```json\n{json.dumps(response_data, indent=2)}```",
+                    "color": 65280
+                }]
+            }
+            requests.post(settings.DiscordWebhookUrl, json=discord_log, timeout=5)
+        except:
+            pass
+        
+        return jsonify(response_data)
+    else:
+        send_discord_webhook(
+            "❌ Photon Auth Failed",
+            "",
+            16711680,
+            [
+                {"name": "Reason", "value": "PlayFab Error", "inline": False},
+                {"name": "User ID", "value": user_id, "inline": True},
+                {"name": "Status", "value": str(req.status_code), "inline": True}
+            ]
+        )
+        return jsonify({'resultCode': 0, 'message': "Something went wrong", 'userId': None, 'nickname': None})
+
+@app.route("/api/PhotonAuthv2", methods=["POST"])
+def photon_auth_v2():
+    data = request.get_json(silent=True)
+    ip_address = get_client_ip()
+    
+    if not data:
+        send_discord_webhook(
+            "Photon Auth v2 Blocked",
+            "",
+            16711680,
+            [{"name": "Reason", "value": "No JSON body", "inline": False}, {"name": "IP", "value": ip_address, "inline": True}]
+        )
+        return jsonify({"error": "Invalid request"}), 400
+    
+    player_id = data.get("playerId")
+    
+    if not player_id:
+        send_discord_webhook(
+            "🚨 Photon Auth v2 Blocked",
+            "",
+            16711680,
+            [{"name": "Reason", "value": "Missing playerId", "inline": False}, {"name": "IP", "value": ip_address, "inline": True}]
+        )
+        return jsonify({"error": "playerId is required"}), 403
+    
+    return jsonify({"success": True, "playerId": player_id}), 200
+
+@app.route('/api/TitleData', methods=['POST', 'GET'])
+def titledata():
+    response_data = {
+        "AutoMuteCheckedHours": {
+            "hours": 169
+        },
+        "AutoName_Adverbs": [
+            "Cool", "Fine", "Bald", "Bold", "Half", 
+            "Only", "Calm", "Fab", "Ice", "Mad", 
+            "Rad", "Big", "New", "Old", "Shy"
+        ],
+        "AutoName_Nouns": [
+            "Gorilla", "Chicken", "Darling", "Sloth", "King", 
+            "Queen", "Royal", "Major", "Actor", "Agent", 
+            "Elder", "Honey", "Nurse", "Doctor", "Rebel", 
+            "Shape", "Ally", "Driver", "Deputy"
+        ],
+        "BundleBoardSign": "<color=#ff4141>discord.gg/luckytag</color>",
+        "BundleKioskButton": "<color=#ff4141>discord.gg/luckytag</color>",
+        "BundleKioskSign": "<color=#ff4141>discord.gg/luckytag</color>",
+        "BundleLargeSign": "<color=#ff4141>discord.gg/luckytag</color>",
+        "EmptyFlashbackText": "discord.gg/luckytag",
+        "EnableCustomAuthentication": True,
+        "GorillanalyticsChance": 4320,
+        "LatestPrivacyPolicyVersion": "2024.09.20",
+        "LatestTOSVersion": "2024.09.20",
+        "CreditsData": [{"Title": "DEV TEAM", "Entries": ["<color=red>DESK</color>\n<color=red>WHATDOIDO</color><color=red>L1RSON</color>\n"]}],
+        "MOTD": "<color=white>WELCOME TO LUCKY TAG!</color>\n<color=cyan>JOIN OUR DISCORD AT DISCORD.GG/LUCKYTAG TO SUPPORT OUR GAME!</color>\n\n<color=yellow>GAME CREATOR: DESK</color>\n<color=orange>OUR CURRENT GAME UPDATE IS WINTER 2024</color>\n\n<color=purple>JOIN OUR DISCORD AND BOOST IT 1X FOR EVERYCOSMETIC (NO STAFF)</color>",
+        "SeasonalStoreBoardSign": "<color=#80ff00>RATE THE GAME 5 STARS!</color>\n\n<color=#00ff88>.GG/luckytag</color>",
+        "TOS_2024.09.20": "discord.gg/luckytag",
+        "TOBAlreadyOwnCompTxt": "discord.gg/luckytag",
+        "TOBAlreadyOwnPurchaseBundle": "discord.gg/luckytag",
+        "TOBDefCompTxt": "discord.gg/luckytag",
+        "TOBDefPurchaseBtnDefTxt": "discord.gg/luckytag",
+        "UseLegacyIAP": False
+    }
+    return jsonify(response_data)
+
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=9080)
