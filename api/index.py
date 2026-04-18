@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 APP_CREDENTIALS = "OC|34606118765698723|eed22a47cc74b8e387580d7c672eba89"
 
 AppLabCredentials = {
-    "Og Gtag": {
+    "OgGtag": {
         "Credential": APP_CREDENTIALS
     },
     "GameNameHere2": {
@@ -40,8 +40,8 @@ class ApplabInfo:
 
 settings = GameInfo()
 
-Og Gtag = ApplabInfo()
-Og Gtag.Credential = AppLabCredentials["Og Gtag"]["Credential"]
+OgGtag = ApplabInfo()
+OgGtag.Credential = AppLabCredentials["OgGtag"]["Credential"]
 
 GameNamehere2 = ApplabInfo()
 GameNamehere2.Credential = AppLabCredentials["GameNameHere2"]["Credential"]
